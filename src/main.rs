@@ -1,7 +1,13 @@
 use std::path::PathBuf;
-use clap::{Parser,Subcommand};
+use std::thread;
 
-#[derive(Parser)]
+use clap::{Parser,Subcommand};
+use image::io::Reader as ImageReader;
+
+use image_processor as imp;
+
+
+#[derive(Parser, Debug)]
 #[command(author, version, about, long_about=None)]
 struct Cli {
     /// Input image
@@ -15,7 +21,7 @@ struct Cli {
     commands: Commands,
 }
 
-#[derive(Subcommand)]
+#[derive(Subcommand, Debug)]
 enum Commands {
     /// Adjust the exposure of the image
     Exposure { 
@@ -26,4 +32,8 @@ enum Commands {
 
 fn main() {
     let cli = Cli::parse();
+    dbg!(&cli);
+    // Load image
+    let rgb_img = ImageReader::open(&cli.input_image).unwrap().decode().unwrap().into_rgb8();
+    println!("Done");
 }
