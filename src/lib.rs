@@ -1,6 +1,6 @@
 use core::num;
 
-use image::{ImageBuffer, Rgb, Pixel};
+use image::{ImageBuffer, Pixel, Rgb};
 
 pub fn adjust_exposure(pixel: &mut Rgb<u8>, exposure: f32) {
     pixel[0] = f32::max((pixel[0] as f32) * f32::powf(2.0, exposure), u8::MAX as f32) as u8;
@@ -18,7 +18,7 @@ pub struct Partition {
 pub fn get_partitions(width: u32, height: u32, num_partitions: u32) -> Vec<Partition> {
     let mut partitions: Vec<Partition> = Vec::new();
     for i in 0..num_partitions {
-        let partition = Partition{
+        let partition = Partition {
             xmin: 0,
             xmax: width - 1,
             ymin: i * height / num_partitions,
