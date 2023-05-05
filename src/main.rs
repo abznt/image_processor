@@ -1,67 +1,28 @@
-use std::thread;
-use std::{path::PathBuf, sync::Arc};
+use std::time::Instant;
+use clap::Parser;
+use image2::{Image, Rgb};
 
-use clap::{Parser, Subcommand};
-use image::{io::Reader as ImageReader, GenericImageView};
-
-use image_processor as imp;
-
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about=None)]
-struct Cli {
-    /// Input image
-    input_image: PathBuf,
-    /// Output image
-    output_image: PathBuf,
-    /// Number of threads
-    #[arg(
-        short = 'j',
-        long = "num-threads",
-        value_name = "NUM_THREADS",
-        default_value_t = 1
-    )]
-    num_threads: u32,
-    #[command[subcommand]]
-    command: Commands,
-}
-
-#[derive(Subcommand, Debug)]
-enum Commands {
-    /// Adjust the exposure of the image
-    Exposure {
-        /// Exposure adjustment amount
-        amount: f32,
-    },
-}
+use image_processor::image_processor::*;
+use image_processor::cli::*;
 
 fn main() {
+    let program_start = Instant::now();
+    // Parse arguments
     let cli = Cli::parse();
-    dbg!(&cli);
+    // Construct thread pool
+    println!("Using {} theads", cli.num_threads);
+    let pool = rayon::ThreadPoolBuilder::new().num_threads(cli.num_threads).build().unwrap();
     // Load image
-    let mut rgb_img = 
-        ImageReader::open(&cli.input_image)
-            .unwrap()
-            .decode()
-            .unwrap()
-            .into_rgb8()
-    ;
-
-    thread::scope(|s| {
-        for partition in imp::get_partitions(rgb_img.width(), rgb_img.height(), cli.num_threads) {
-            // let cli = cli.clone();
-            // let rgb_img = rgb_img.clone();
-            s.spawn(|| {
-                for x in partition.xmin..partition.xmax {
-                    for y in partition.ymin..partition.ymax {
-                        match cli.command {
-                            Commands::Exposure { amount } => {
-                                imp::adjust_exposure(rgb_img.get_pixel_mut(x, y), amount);
-                            }
-                        }
-                    }
-                }
-            });
-        }
-    });
-    println!("Done");
+    println!("Loading image: {:?}", &cli.input_image);
+    let mut image = Image::<u8, Rgb>::open(&cli.input_image).unwrap();
+    // Process
+    let imp_start = Instant::now();
+    pool.install(|| process_image(&mut image, cli.command));
+    let imp_duration = imp_start.elapsed();
+    // Save image
+    println!("Saving processed image to: {:?}", &cli.output_image);
+    image.save(&cli.output_image).unwrap();
+    let program_duration = program_start.elapsed();
+    println!("Total elapsed time: {:.2?}ms", program_duration.as_millis());
+    println!("Image processing duration: {:.2?}ms", imp_duration.as_millis());
 }
